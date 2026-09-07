@@ -1,0 +1,609 @@
+//+------------------------------------------------------------------+
+//| Grid EA V5.4 - The "Tank" Edition (1 AM to 5:30 AM Pause)        |
+//| True IST Clock + 150k USC Hard Stop + 0.4x Reduced Distances     |
+//| INCLUDES: Built-in Diagnostic Engine for Troubleshooting         |
+//+------------------------------------------------------------------+
+
+// --- BRANDING & COPYRIGHT ---
+#property copyright "XAUUSD ALGO by TL"
+#property link      "" 
+#property version   "5.40"
+#property description "Automated Grid Trading System"
+#property description "Exclusive access for TL students only."
+
+#include <Trade\Trade.mqh> 
+CTrade trade;
+
+// --- SECURITY SETTINGS ---
+// Replace with the student's actual Vantage account number
+#define ALLOWED_ACCOUNT_NUMBER 29088346
+
+//--- Main Settings
+input int    Magic              = 7;
+input int    MaxLegsForTP1      = 5;
+
+//--- Updated TP Targets
+input double TP1_Points         = 800.0;
+input double TP2_Points         = 400.0;
+
+//--- Fixed USC Hard Stop (Cuts at exactly $1,500 loss)
+input double HardStopLossUSC    = 150000.0; 
+
+input int    EMA_Period         = 200;
+
+//--- Daily Profit Settings
+enum ENUM_DAILY_MODE { PERCENTAGE, FIXED_AMOUNT };
+input ENUM_DAILY_MODE DailyProfitMode  = PERCENTAGE;
+input double          DailyProfitLimit = 10.0;
+
+//--- Daily Sleep Window (TRUE IST TIME)
+// Pauses from 1 AM IST to 5:30 AM IST (Skips Rollover)
+input bool   UseDailyPause         = true;
+input int    DailyPauseStartHour   = 1;  // 1 AM IST
+input int    DailyPauseStartMin    = 0;  // 00 Min
+input int    DailyPauseEndHour     = 5;  // 5 AM IST
+input int    DailyPauseEndMin      = 30; // 30 Min
+
+//--- Monday Start Delay 
+input bool   UseMondayDelay        = true;
+input int    MondayStartHour       = 4;     // Broker time hour
+
+//--- Friday Kill Switch Settings 
+input bool   UseFridayKillSwitch   = true;
+input int    FridayStopHour        = 20;    // Broker time hour
+
+//--- News Filter Settings (GLOBAL STRICT MODE)
+input bool   UseNewsFilter          = true;
+input int    StopMinutesBeforeNews  = 30;
+input int    StartMinutesAfterNews  = 10;
+
+//--- Lot Sizes (100 legs)
+input double LotSize1  = 0.01; input double LotSize2  = 0.02; input double LotSize3  = 0.03;
+input double LotSize4  = 0.04; input double LotSize5  = 0.05; input double LotSize6  = 0.06;
+input double LotSize7  = 0.07; input double LotSize8  = 0.08; input double LotSize9  = 0.09;
+input double LotSize10 = 0.1;  input double LotSize11 = 0.11; input double LotSize12 = 0.13;
+input double LotSize13 = 0.14; input double LotSize14 = 0.15; input double LotSize15 = 0.16;
+input double LotSize16 = 0.16; input double LotSize17 = 0.17; input double LotSize18 = 0.19;
+input double LotSize19 = 0.21; input double LotSize20 = 0.23; input double LotSize21 = 0.26;
+input double LotSize22 = 0.28; input double LotSize23 = 0.31; input double LotSize24 = 0.33;
+input double LotSize25 = 0.35; input double LotSize26 = 0.40; input double LotSize27 = 0.43;
+input double LotSize28 = 0.46; input double LotSize29 = 0.48; input double LotSize30 = 0.50;
+input double LotSize31 = 0.53; input double LotSize32 = 0.56; input double LotSize33 = 0.60;
+input double LotSize34 = 0.63; input double LotSize35 = 0.65; input double LotSize36 = 0.67;
+input double LotSize37 = 0.69; input double LotSize38 = 0.71; input double LotSize39 = 0.74;
+input double LotSize40 = 0.77; input double LotSize41 = 0.80; input double LotSize42 = 0.84;
+input double LotSize43 = 0.88; input double LotSize44 = 0.93; input double LotSize45 = 0.95;
+input double LotSize46 = 0.98; input double LotSize47 = 1.00; input double LotSize48 = 1.10;
+input double LotSize49 = 1.20; input double LotSize50 = 1.30; input double LotSize51 = 1.50;
+input double LotSize52 = 1.60; input double LotSize53 = 1.80; input double LotSize54 = 2.00;
+input double LotSize55 = 2.00; input double LotSize56 = 2.10; input double LotSize57 = 2.20;
+input double LotSize58 = 2.30; input double LotSize59 = 2.40; input double LotSize60 = 2.50;
+input double LotSize61 = 2.60; input double LotSize62 = 2.70; input double LotSize63 = 2.80;
+input double LotSize64 = 2.90; input double LotSize65 = 3.10; input double LotSize66 = 3.30;
+input double LotSize67 = 3.60; input double LotSize68 = 3.80; input double LotSize69 = 3.90;
+input double LotSize70 = 4.00; input double LotSize71 = 4.10; input double LotSize72 = 4.20;
+input double LotSize73 = 4.30; input double LotSize74 = 4.40; input double LotSize75 = 4.50;
+input double LotSize76 = 4.60; input double LotSize77 = 4.70; input double LotSize78 = 4.80;
+input double LotSize79 = 4.90; input double LotSize80 = 5.00; input double LotSize81 = 5.10;
+input double LotSize82 = 5.20; input double LotSize83 = 5.30; input double LotSize84 = 5.40;
+input double LotSize85 = 5.50; input double LotSize86 = 5.60; input double LotSize87 = 5.70;
+input double LotSize88 = 5.80; input double LotSize89 = 5.90; input double LotSize90 = 6.00;
+input double LotSize91 = 6.10; input double LotSize92 = 6.20; input double LotSize93 = 6.30;
+input double LotSize94 = 6.40; input double LotSize95 = 6.50; input double LotSize96 = 6.60;
+input double LotSize97 = 6.70; input double LotSize98 = 6.80; input double LotSize99 = 6.90;
+input double LotSize100= 1.00;
+
+//--- Distances between legs (0.4x Reduced Points)
+input double Dist1  = 48;  input double Dist2  = 48;  input double Dist3  = 48;
+input double Dist4  = 72;  input double Dist5  = 72;  input double Dist6  = 72;
+input double Dist7  = 96;  input double Dist8  = 96;  input double Dist9  = 96;
+input double Dist10 = 120; input double Dist11 = 120; input double Dist12 = 120;
+input double Dist13 = 120; input double Dist14 = 120; input double Dist15 = 120;
+input double Dist16 = 144; input double Dist17 = 144; input double Dist18 = 144;
+input double Dist19 = 144; input double Dist20 = 144; input double Dist21 = 144;
+input double Dist22 = 144; input double Dist23 = 144; input double Dist24 = 144;
+input double Dist25 = 144; input double Dist26 = 144; input double Dist27 = 144;
+input double Dist28 = 144; input double Dist29 = 144; input double Dist30 = 144;
+input double Dist31 = 144; input double Dist32 = 144; input double Dist33 = 144;
+input double Dist34 = 144; input double Dist35 = 144; input double Dist36 = 144;
+input double Dist37 = 144; input double Dist38 = 144; input double Dist39 = 144;
+input double Dist40 = 144; input double Dist41 = 144; input double Dist42 = 144;
+input double Dist43 = 144; input double Dist44 = 144; input double Dist45 = 144;
+input double Dist46 = 144; input double Dist47 = 144; input double Dist48 = 144;
+input double Dist49 = 144; input double Dist50 = 144; input double Dist51 = 168;
+input double Dist52 = 168; input double Dist53 = 168; input double Dist54 = 168;
+input double Dist55 = 168; input double Dist56 = 168; input double Dist57 = 182.4;
+input double Dist58 = 182.4; input double Dist59 = 182.4; input double Dist60 = 182.4;
+input double Dist61 = 187.2; input double Dist62 = 192; input double Dist63 = 192;
+input double Dist64 = 192; input double Dist65 = 192; input double Dist66 = 192;
+input double Dist67 = 192; input double Dist68 = 206.4; input double Dist69 = 206.4;
+input double Dist70 = 206.4; input double Dist71 = 206.4; input double Dist72 = 206.4;
+input double Dist73 = 206.4; input double Dist74 = 192; input double Dist75 = 206.4;
+input double Dist76 = 206.4; input double Dist77 = 225.6; input double Dist78 = 225.6;
+input double Dist79 = 225.6; input double Dist80 = 225.6; input double Dist81 = 225.6;
+input double Dist82 = 225.6; input double Dist83 = 225.6; input double Dist84 = 225.6;
+input double Dist85 = 240; input double Dist86 = 240; input double Dist87 = 240;
+input double Dist88 = 240; input double Dist89 = 240; input double Dist90 = 240;
+input double Dist91 = 240; input double Dist92 = 240; input double Dist93 = 240;
+input double Dist94 = 240; input double Dist95 = 240; input double Dist96 = 240;
+input double Dist97 = 240; input double Dist98 = 240; input double Dist99 = 240;
+
+//--- Global arrays
+double LotSizes[100];
+double Distances[100];
+
+int      handleEMA;
+double   g_DailyStartBalance = 0;
+datetime g_LastDayReset      = 0;
+bool     g_DailyLimitHit     = false;
+bool     g_HardStopHit       = false; 
+
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   // --- 1. SECURITY CHECK: ACCOUNT NUMBER ---
+   long currentAccount = AccountInfoInteger(ACCOUNT_LOGIN);
+   if(currentAccount != ALLOWED_ACCOUNT_NUMBER)
+   {
+      Print("SECURITY ALERT: This EA is not licensed for account ", currentAccount, ". Please contact Vinay for the correct file.");
+      Alert("Unlicensed Account! EA will now close.");
+      ExpertRemove();
+      return(INIT_FAILED);
+   }
+
+   handleEMA = iMA(_Symbol, PERIOD_H1, EMA_Period, 0, MODE_EMA, PRICE_CLOSE);
+   if(handleEMA == INVALID_HANDLE) return(INIT_FAILED);
+
+   PopulateArrays();
+
+   g_DailyStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+   g_LastDayReset      = iTime(_Symbol, PERIOD_D1, 0);
+   g_DailyLimitHit     = false;
+   g_HardStopHit       = false;
+
+   // CTrade Initialization for perfect server execution
+   trade.SetExpertMagicNumber(Magic);
+   trade.SetDeviationInPoints(50); 
+   trade.SetTypeFillingBySymbol(_Symbol); 
+
+   return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+void PopulateArrays()
+{
+   LotSizes[0]=LotSize1;   LotSizes[1]=LotSize2;   LotSizes[2]=LotSize3;
+   LotSizes[3]=LotSize4;   LotSizes[4]=LotSize5;   LotSizes[5]=LotSize6;
+   LotSizes[6]=LotSize7;   LotSizes[7]=LotSize8;   LotSizes[8]=LotSize9;
+   LotSizes[9]=LotSize10;  LotSizes[10]=LotSize11; LotSizes[11]=LotSize12;
+   LotSizes[12]=LotSize13; LotSizes[13]=LotSize14; LotSizes[14]=LotSize15;
+   LotSizes[15]=LotSize16; LotSizes[16]=LotSize17; LotSizes[17]=LotSize18;
+   LotSizes[18]=LotSize19; LotSizes[19]=LotSize20; LotSizes[20]=LotSize21;
+   LotSizes[21]=LotSize22; LotSizes[22]=LotSize23; LotSizes[23]=LotSize24;
+   LotSizes[24]=LotSize25; LotSizes[25]=LotSize26; LotSizes[26]=LotSize27;
+   LotSizes[27]=LotSize28; LotSizes[28]=LotSize29; LotSizes[29]=LotSize30;
+   LotSizes[30]=LotSize31; LotSizes[31]=LotSize32; LotSizes[32]=LotSize33;
+   LotSizes[33]=LotSize34; LotSizes[34]=LotSize35; LotSizes[35]=LotSize36;
+   LotSizes[36]=LotSize37; LotSizes[37]=LotSize38; LotSizes[38]=LotSize39;
+   LotSizes[39]=LotSize40; LotSizes[40]=LotSize41; LotSizes[41]=LotSize42;
+   LotSizes[42]=LotSize43; LotSizes[43]=LotSize44; LotSizes[44]=LotSize45;
+   LotSizes[45]=LotSize46; LotSizes[46]=LotSize47; LotSizes[47]=LotSize48;
+   LotSizes[48]=LotSize49; LotSizes[49]=LotSize50; LotSizes[50]=LotSize51;
+   LotSizes[51]=LotSize52; LotSizes[52]=LotSize53; LotSizes[53]=LotSize54;
+   LotSizes[54]=LotSize55; LotSizes[55]=LotSize56; LotSizes[56]=LotSize57;
+   LotSizes[57]=LotSize58; LotSizes[58]=LotSize59; LotSizes[59]=LotSize60;
+   LotSizes[60]=LotSize61; LotSizes[61]=LotSize62; LotSizes[62]=LotSize63;
+   LotSizes[63]=LotSize64; LotSizes[64]=LotSize65; LotSizes[65]=LotSize66;
+   LotSizes[66]=LotSize67; LotSizes[67]=LotSize68; LotSizes[68]=LotSize69;
+   LotSizes[69]=LotSize70; LotSizes[70]=LotSize71; LotSizes[71]=LotSize72;
+   LotSizes[72]=LotSize73; LotSizes[73]=LotSize74; LotSizes[74]=LotSize75;
+   LotSizes[75]=LotSize76; LotSizes[76]=LotSize77; LotSizes[77]=LotSize78;
+   LotSizes[78]=LotSize79; LotSizes[79]=LotSize80; LotSizes[80]=LotSize81;
+   LotSizes[81]=LotSize82; LotSizes[82]=LotSize83; LotSizes[83]=LotSize84;
+   LotSizes[84]=LotSize85; LotSizes[85]=LotSize86; LotSizes[86]=LotSize87;
+   LotSizes[87]=LotSize88; LotSizes[88]=LotSize89; LotSizes[89]=LotSize90;
+   LotSizes[90]=LotSize91; LotSizes[91]=LotSize92; LotSizes[92]=LotSize93;
+   LotSizes[93]=LotSize94; LotSizes[94]=LotSize95; LotSizes[95]=LotSize96;
+   LotSizes[96]=LotSize97; LotSizes[97]=LotSize98; LotSizes[98]=LotSize99;
+   LotSizes[99]=LotSize100;
+
+   Distances[0]=Dist1;   Distances[1]=Dist2;   Distances[2]=Dist3;
+   Distances[3]=Dist4;   Distances[4]=Dist5;   Distances[5]=Dist6;
+   Distances[6]=Dist7;   Distances[7]=Dist8;   Distances[8]=Dist9;
+   Distances[9]=Dist10;  Distances[10]=Dist11; Distances[11]=Dist12;
+   Distances[12]=Dist13; Distances[13]=Dist14; Distances[14]=Dist15;
+   Distances[15]=Dist16; Distances[16]=Dist17; Distances[17]=Dist18;
+   Distances[18]=Dist19; Distances[19]=Dist20; Distances[20]=Dist21;
+   Distances[21]=Dist22; Distances[22]=Dist23; Distances[23]=Dist24;
+   Distances[24]=Dist25; Distances[25]=Dist26; Distances[26]=Dist27;
+   Distances[27]=Dist28; Distances[28]=Dist29; Distances[29]=Dist30;
+   Distances[30]=Dist31; Distances[31]=Dist32; Distances[32]=Dist33;
+   Distances[33]=Dist34; Distances[34]=Dist35; Distances[35]=Dist36;
+   Distances[36]=Dist37; Distances[37]=Dist38; Distances[38]=Dist39;
+   Distances[39]=Dist40; Distances[40]=Dist41; Distances[41]=Dist42;
+   Distances[42]=Dist43; Distances[43]=Dist44; Distances[44]=Dist45;
+   Distances[45]=Dist46; Distances[46]=Dist47; Distances[47]=Dist48;
+   Distances[48]=Dist49; Distances[49]=Dist50; Distances[50]=Dist51;
+   Distances[51]=Dist52; Distances[52]=Dist53; Distances[53]=Dist54;
+   Distances[54]=Dist55; Distances[55]=Dist56; Distances[56]=Dist57;
+   Distances[57]=Dist58; Distances[58]=Dist59; Distances[59]=Dist60;
+   Distances[60]=Dist61; Distances[61]=Dist62; Distances[62]=Dist63;
+   Distances[63]=Dist64; Distances[64]=Dist65; Distances[65]=Dist66;
+   Distances[66]=Dist67; Distances[67]=Dist68; Distances[68]=Dist69;
+   Distances[69]=Dist70; Distances[70]=Dist71; Distances[71]=Dist72;
+   Distances[72]=Dist73; Distances[73]=Dist74; Distances[74]=Dist75;
+   Distances[75]=Dist76; Distances[76]=Dist77; Distances[77]=Dist78;
+   Distances[78]=Dist79; Distances[79]=Dist80; Distances[80]=Dist81;
+   Distances[81]=Dist82; Distances[82]=Dist83; Distances[83]=Dist84;
+   Distances[84]=Dist85; Distances[85]=Dist86; Distances[86]=Dist87;
+   Distances[87]=Dist88; Distances[88]=Dist89; Distances[89]=Dist90;
+   Distances[90]=Dist91; Distances[91]=Dist92; Distances[92]=Dist93;
+   Distances[93]=Dist94; Distances[94]=Dist95; Distances[95]=Dist96;
+   Distances[96]=Dist97; Distances[97]=Dist98; Distances[98]=Dist99;
+   Distances[99]=Dist99; 
+}
+
+//+------------------------------------------------------------------+
+void OnTick()
+{
+   if(g_HardStopHit) return; 
+
+   if(g_DailyStartBalance <= 0)
+      g_DailyStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+
+   ResetDailyBalance();
+   CheckEquityProtection();
+   CheckDailyProfitLimit();
+
+   if(g_DailyLimitHit) return;
+
+   ManageTrades();
+}
+
+//+------------------------------------------------------------------+
+void ResetDailyBalance()
+{
+   datetime currentDay = iTime(_Symbol, PERIOD_D1, 0);
+   if(currentDay != g_LastDayReset)
+   {
+      g_DailyStartBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+      g_LastDayReset      = currentDay;
+      g_DailyLimitHit     = false;
+   }
+}
+
+//+------------------------------------------------------------------+
+void CheckEquityProtection()
+{
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
+
+   if(equity <= balance - HardStopLossUSC)
+   {
+      Print("HARD STOP TRIGGERED! Floating loss exceeded ", HardStopLossUSC, " USC. Closing all trades.");
+      CloseAllTrades();
+      g_HardStopHit = true; 
+   }
+}
+
+//+------------------------------------------------------------------+
+void CheckDailyProfitLimit()
+{
+   if(g_DailyLimitHit) return; 
+   if(g_DailyStartBalance <= 0) return; 
+
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
+   double profit  = equity - g_DailyStartBalance;
+
+   bool limitHit = false;
+
+   if(DailyProfitMode == PERCENTAGE)
+   {
+      double pct = (profit / g_DailyStartBalance) * 100.0;
+      if(pct >= DailyProfitLimit) limitHit = true;
+   }
+   else 
+   {
+      if(profit >= DailyProfitLimit) limitHit = true;
+   }
+
+   if(limitHit)
+   {
+      CloseAllTrades();
+      g_DailyLimitHit = true; 
+   }
+}
+
+//+------------------------------------------------------------------+
+bool CheckGlobalHighImpactNews(datetime fromTime, datetime toTime)
+{
+   MqlCalendarValue values[];
+   
+   if(CalendarValueHistory(values, fromTime, toTime, NULL, NULL))
+   {
+      for(int i = 0; i < ArraySize(values); i++)
+      {
+         MqlCalendarEvent event;
+         if(CalendarEventById(values[i].event_id, event))
+         {
+            if(event.importance == CALENDAR_IMPORTANCE_HIGH)
+               return true;
+         }
+      }
+   }
+   return false;
+}
+
+//+------------------------------------------------------------------+
+bool IsNewsTime()
+{
+   if(!UseNewsFilter) return false;
+   
+   datetime now = TimeCurrent();
+   datetime fromTime = now - (StartMinutesAfterNews * 60);
+   datetime toTime   = now + (StopMinutesBeforeNews * 60);
+   
+   return CheckGlobalHighImpactNews(fromTime, toTime);
+}
+
+//+------------------------------------------------------------------+
+void ManageTrades()
+{
+   int total = CountPositions();
+   MqlDateTime dtBroker;
+   TimeCurrent(dtBroker);
+
+   // --- 1. CALCULATE PURE IST TIME ---
+   datetime gmtTime = TimeGMT();
+   datetime istTime = gmtTime + (5 * 3600) + (30 * 60); 
+   MqlDateTime dtIST;
+   TimeToStruct(istTime, dtIST);
+
+   // --- 2. FRIDAY/MONDAY/NEWS HALTS ---
+   bool isFridayHalt = false;
+   if(UseFridayKillSwitch && dtBroker.day_of_week == 5 && dtBroker.hour >= FridayStopHour)
+      isFridayHalt = true;
+
+   bool isMondayHalt = false;
+   if(UseMondayDelay && dtBroker.day_of_week == 1 && dtBroker.hour < MondayStartHour)
+      isMondayHalt = true;
+
+   bool isNewsActive = IsNewsTime();
+
+   // --- 3. DAILY SLEEP WINDOW (IST Time) ---
+   bool isDailyPauseIST = false;
+   if(UseDailyPause)
+   {
+      int currentMinsIST = dtIST.hour * 60 + dtIST.min;
+      int startMinsIST   = DailyPauseStartHour * 60 + DailyPauseStartMin;
+      int endMinsIST     = DailyPauseEndHour * 60 + DailyPauseEndMin;
+
+      if(startMinsIST > endMinsIST) 
+      {
+         if(currentMinsIST >= startMinsIST || currentMinsIST < endMinsIST)
+            isDailyPauseIST = true;
+      }
+      else 
+      {
+         if(currentMinsIST >= startMinsIST && currentMinsIST < endMinsIST)
+            isDailyPauseIST = true;
+      }
+   }
+
+   // --- THE FIX: Combine filters so they ONLY block new cycles ---
+   bool blockNewCycle = isFridayHalt || isMondayHalt || isNewsActive || isDailyPauseIST; 
+
+   // --- NEW DIAGNOSTIC LOGIC ---
+   if(total == 0)
+   {
+      // If no trades are open, respect the pauses and news filters
+      if(blockNewCycle) 
+      {
+         static datetime lastBlockLog = 0;
+         if(TimeCurrent() - lastBlockLog >= 60) // Prints only once per minute to avoid spam
+         {
+            Print("EA DIAGNOSTIC: Blocked from NEW trades -> News: ", isNewsActive, " | Sleep: ", isDailyPauseIST, " | Weekend: ", (isFridayHalt || isMondayHalt));
+            lastBlockLog = TimeCurrent();
+         }
+         return;
+      }
+
+      double ema[];
+      if(CopyBuffer(handleEMA, 0, 0, 1, ema) <= 0) 
+      {
+         Print("EA DIAGNOSTIC: Cannot read EMA indicator. Waiting for data...");
+         return;
+      }
+      
+      double close = iClose(_Symbol, PERIOD_H1, 0);
+
+      if(close > ema[0])
+      {
+         Print("EA DIAGNOSTIC: Attempting BUY... Price (", close, ") is above EMA (", ema[0], ")");
+         OpenTrade(ORDER_TYPE_BUY,  LotSizes[0]);
+      }
+      else if(close < ema[0])
+      {
+         Print("EA DIAGNOSTIC: Attempting SELL... Price (", close, ") is below EMA (", ema[0], ")");
+         OpenTrade(ORDER_TYPE_SELL, LotSizes[0]);
+      }
+   }
+   else
+   {
+      // IF A CYCLE IS OPEN: Always manage TP and Grid Averaging (Ignores all pauses)
+      CheckBasketProfit(total);
+      GridLogic(total);
+   }
+}
+
+//+------------------------------------------------------------------+
+void GridLogic(int total)
+{
+   if(total >= 100) return;
+
+   double   lastPrice = 0;
+   long     lastType  = -1;
+   datetime lastTime  = 0;
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(PositionSelectByTicket(ticket))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == Magic &&
+            PositionGetString(POSITION_SYMBOL) == _Symbol)
+         {
+            datetime openTime = (datetime)PositionGetInteger(POSITION_TIME);
+            
+            if(openTime > lastTime) 
+            {
+               lastTime  = openTime;
+               lastPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+               lastType  = PositionGetInteger(POSITION_TYPE);
+            }
+         }
+      }
+   }
+
+   if(lastPrice == 0) return;
+
+   double distance = Distances[total - 1] * _Point;
+
+   if(lastType == POSITION_TYPE_BUY)
+   {
+      if(SymbolInfoDouble(_Symbol, SYMBOL_BID) < lastPrice - distance)
+      {
+         Print("EA DIAGNOSTIC: Grid Triggered - Attempting to BUY Leg ", total + 1);
+         OpenTrade(ORDER_TYPE_BUY, LotSizes[total]);
+      }
+   }
+   else if(lastType == POSITION_TYPE_SELL)
+   {
+      if(SymbolInfoDouble(_Symbol, SYMBOL_ASK) > lastPrice + distance)
+      {
+         Print("EA DIAGNOSTIC: Grid Triggered - Attempting to SELL Leg ", total + 1);
+         OpenTrade(ORDER_TYPE_SELL, LotSizes[total]);
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+void CheckBasketProfit(int total)
+{
+   double totalVolume = 0;
+   double totalValue = 0;
+   long   gridType = -1;
+
+   for(int i = 0; i < PositionsTotal(); i++)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(PositionSelectByTicket(ticket))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == Magic &&
+            PositionGetString(POSITION_SYMBOL) == _Symbol)
+         {
+            double vol   = PositionGetDouble(POSITION_VOLUME);
+            double price = PositionGetDouble(POSITION_PRICE_OPEN);
+            
+            totalVolume += vol;
+            totalValue  += (vol * price);
+            
+            if(gridType == -1)
+               gridType = PositionGetInteger(POSITION_TYPE);
+         }
+      }
+   }
+
+   if(totalVolume == 0 || gridType == -1) return;
+
+   double bePrice = totalValue / totalVolume;
+   double targetPoints = (total <= MaxLegsForTP1) ? TP1_Points : TP2_Points;
+
+   // 1. Virtual TP Fallback 
+   if(gridType == POSITION_TYPE_BUY)
+   {
+      double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      if((bid - bePrice) / _Point >= targetPoints) { CloseAllTrades(); return; }
+   }
+   else if(gridType == POSITION_TYPE_SELL)
+   {
+      double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      if((bePrice - ask) / _Point >= targetPoints) { CloseAllTrades(); return; }
+   }
+
+   // 2. Physical Broker TP 
+   double targetPrice = 0;
+   if(gridType == POSITION_TYPE_BUY)
+      targetPrice = bePrice + (targetPoints * _Point);
+   else if(gridType == POSITION_TYPE_SELL)
+      targetPrice = bePrice - (targetPoints * _Point);
+
+   targetPrice = NormalizeDouble(targetPrice, _Digits);
+
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(PositionSelectByTicket(ticket))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == Magic && PositionGetString(POSITION_SYMBOL) == _Symbol)
+         {
+            double currentTP = PositionGetDouble(POSITION_TP);
+            
+            if(MathAbs(currentTP - targetPrice) > _Point * 0.5)
+            {
+               double currentSL = PositionGetDouble(POSITION_SL);
+               trade.PositionModify(ticket, currentSL, targetPrice);
+            }
+         }
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+void OpenTrade(ENUM_ORDER_TYPE type, double lot)
+{
+   bool result = false;
+   if(type == ORDER_TYPE_BUY) 
+      result = trade.Buy(lot, _Symbol);
+   else if(type == ORDER_TYPE_SELL) 
+      result = trade.Sell(lot, _Symbol);
+      
+   if(!result)
+   {
+      Print("EA DIAGNOSTIC: BROKER REJECTED ORDER! Code: ", trade.ResultRetcode(), " | Description: ", trade.ResultRetcodeDescription());
+   }
+}
+
+//+------------------------------------------------------------------+
+int CountPositions()
+{
+   int count = 0;
+   for(int i = 0; i < PositionsTotal(); i++)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(PositionSelectByTicket(ticket))
+         if(PositionGetInteger(POSITION_MAGIC) == Magic &&
+            PositionGetString(POSITION_SYMBOL) == _Symbol)
+            count++;
+   }
+   return count;
+}
+
+//+------------------------------------------------------------------+
+void CloseAllTrades()
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(PositionSelectByTicket(ticket))
+      {
+         if(PositionGetInteger(POSITION_MAGIC) == Magic &&
+            PositionGetString(POSITION_SYMBOL) == _Symbol)
+         {
+            trade.PositionClose(ticket);
+         }
+      }
+   }
+}
+//+------------------------------------------------------------------+
