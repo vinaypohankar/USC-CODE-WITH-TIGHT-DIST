@@ -23,8 +23,8 @@ input int    Magic              = 7;
 input int    MaxLegsForTP1      = 5;
 
 //--- Updated TP Targets
-input double TP1_Points         = 800.0;
-input double TP2_Points         = 400.0;
+input double TP1_Points         = 350.0;
+input double TP2_Points         = 200.0;
 
 //--- Fixed USC Hard Stop (Cuts at exactly $1,500 loss)
 input double HardStopLossUSC    = 150000.0; 
